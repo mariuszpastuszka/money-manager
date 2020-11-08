@@ -1,13 +1,16 @@
 package pl.sda.moneymanager.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Example;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import pl.sda.moneymanager.converter.IncomeConverter;
 import pl.sda.moneymanager.domain.Income;
 import pl.sda.moneymanager.dto.IncomeDto;
 import pl.sda.moneymanager.repository.IncomeRepository;
+import pl.sda.moneymanager.repository.PersonRepository;
 
+import javax.transaction.Transactional;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -17,10 +20,12 @@ import java.util.stream.Collectors;
 public class IncomeService {
 
     private final IncomeRepository incomeRepository;
+    private final PersonRepository personRepository;
     private final IncomeConverter incomeConverter;
 
-    public IncomeService(final IncomeRepository incomeRepository, final IncomeConverter incomeConverter) {
+    public IncomeService(final IncomeRepository incomeRepository, PersonRepository personRepository, final IncomeConverter incomeConverter) {
         this.incomeRepository = incomeRepository;
+        this.personRepository = personRepository;
         this.incomeConverter = incomeConverter;
     }
 
@@ -73,6 +78,7 @@ public class IncomeService {
         return saved;
     }
 
+    @Transactional
     public IncomeDto saveIncome(IncomeDto dtoToSave) {
         var entityToSave = incomeConverter.fromDtoToEntity(dtoToSave);
         // TODO: FIX MapStruct
@@ -80,6 +86,18 @@ public class IncomeService {
         entityToSave.setCreationTimestamp(dtoToSave.getCreationTimestamp());
         entityToSave.setUpdateTimestamp(dtoToSave.getUpdateTimestamp());
 
+        // step 1 - save person
+        var person= entityToSave.getPerson();
+        if (person.getName() == null) {
+            throw new RuntimeException("Name must exist!!!");
+        }
+        // step 1.1 - check if person exists by name, surname, sex
+        // TODO:MP add matcher
+        var existingPersons = personRepository.findAll(Example.of(person));
+        // step 2 - set person on income
+        // step 3 - save income source
+        // step 4 - set income source on income
+        // step - save income
         log.info("entity before saving: [{}]", entityToSave);
         var updated = incomeRepository.save(entityToSave);
 
